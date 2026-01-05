@@ -1,6 +1,6 @@
 {
     "name": "com.egs.socketio",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "displayName": "SocketIO",
     "description": "...",
     "unity": "2020.3",
@@ -19,7 +19,7 @@
         }
     ],
     "dependencies": {
-        "com.egs.eventbus": "https://github.com/Thomasdfoz/EventBus.git#main",
+        "com.egs.eventbus": "https://github.com/Thomasdfoz/EGS_EventBus.git#main",
         "com.github.itisnajim.socketio-unity": "https://github.com/itisnajim/SocketIOUnity.git#main"
         
 
