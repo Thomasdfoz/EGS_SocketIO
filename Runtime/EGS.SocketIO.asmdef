@@ -1,0 +1,17 @@
+{
+    "name": "EGS.SocketIO",
+    "rootNamespace": "",
+    "references": [
+        "GUID:ac740251aebda49e8bf622aa1652e9e3",
+        "GUID:294b6760f6844c440a134861a0ee88e5"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

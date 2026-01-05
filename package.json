@@ -1,0 +1,27 @@
+{
+    "name": "com.egs.socketio",
+    "version": "0.0.1",
+    "displayName": "SocketIO",
+    "description": "...",
+    "unity": "2020.3",
+    "unityRelease": "8f1",
+    "author": {
+        "name": "EGS",
+        "email": "eletronicgamesstudio@gmail.com",
+        "url": ""
+    },
+    "type": "tools",
+    "samples": [
+        {
+            "displayName": "SocketIO Example",
+            "description": "Exemplo de uso do pacote",
+            "path": "Samples~/ExampleSample"
+        }
+    ],
+    "dependencies": {
+        "com.egs.eventbus": "https://github.com/Thomasdfoz/EventBus.git#main",
+        "com.github.itisnajim.socketio-unity": "https://github.com/itisnajim/SocketIOUnity.git#main"
+        
+
+    }
+}
