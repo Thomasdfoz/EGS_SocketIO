@@ -1,11 +1,12 @@
+using EGS.SocketIO;
 using EventBusCore;
-using Newtonsoft.Json.Linq;
 using SocketIOClient;
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace EGS.SocketIO 
+namespace Simulation.Core.Services
 {
     public sealed class WsClientService : IDisposable
     {
@@ -34,34 +35,45 @@ namespace EGS.SocketIO
                 ConnectionTimeout = TimeSpan.FromSeconds(_config.connectionTimeout)
             });
 
-            // 1. Conectou no Socket (N�vel TCP/Engine.IO)
+            // 1. Conectado
             _socket.OnConnected += (sender, e) =>
             {
                 Debug.Log($"[WS-IO] Conectado. Enviando Handshake: {_config.handshakeEvent}");
                 _ = SendHandshakeAsync();
             };
 
-            // 2. Escuta o ACK espec�fico definido no ScriptableObject
+            // 2. Escuta o ACK (Correção: Usando JsonElement ao invés de JObject)
             _socket.On(_config.handshakeAckEvent, (response) =>
             {
-                // Verifica se o status � 'accepted' (ou o que estiver na config)
-                // O response.GetValue() pega o JSON recebido
-                var data = response.GetValue<JObject>();
-                var status = data["status"]?.ToString();
+                try
+                {
+                    // Pega o primeiro argumento como JsonElement (seguro)
+                    var data = response.GetValue<JsonElement>();
 
-                if (status == _config.successStatusValue)
-                {
-                    IsReady = true;
-                    MainThread.Post(() =>
+                    // Tenta ler a propriedade de status
+                    string status = null;
+                    if (data.TryGetProperty("status", out JsonElement statusProp))
                     {
-                        Debug.Log($"[WS-IO] Handshake aceito! Status: {status}");
-                        _bus?.Publish(new ConnectionStatusChangedEvent(ConnectionStatus.Ready));
-                    });
+                        status = statusProp.GetString();
+                    }
+
+                    if (status == _config.successStatusValue)
+                    {
+                        IsReady = true;
+                        MainThread.Post(() =>
+                        {
+                            Debug.Log($"[WS-IO] Handshake aceito! Status: {status}");
+                            _bus?.Publish(new ConnectionStatusChangedEvent(ConnectionStatus.Ready));
+                        });
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[WS-IO] Handshake recusado. Status: {status}");
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    Debug.LogWarning($"[WS-IO] Handshake recusado ou inv�lido. Status: {status}");
-                    
+                    Debug.LogError($"[WS-IO] Erro ao processar ACK: {ex.Message}");
                 }
             });
 
@@ -72,42 +84,51 @@ namespace EGS.SocketIO
                     _bus?.Publish(new ConnectionStatusChangedEvent(ConnectionStatus.Disconnected)));
             };
 
-            _socket.OnError += (sender, e) =>
-            {
-                Debug.LogError($"[WS-IO] Erro interno: {e}");
-            };
-
-            // 3. Adaptador Gen�rico (Eventos SocketIO -> EventBus Unity)
+            // 3. Adaptador Genérico (CORRIGIDO AQUI)
             _socket.OnAny((eventName, response) =>
             {
-                // Ignora eventos de controle interno e o ACK que j� tratamos
+                // Ignora eventos internos e o próprio ACK
                 if (eventName == "connect" || eventName == "disconnect" || eventName == _config.handshakeAckEvent) return;
 
                 try
                 {
-                    var token = response.GetValue<JToken>();
-                    string jsonFinal = "";
+                    // Se não tiver dados (ex: apenas um ping), ignoramos ou criamos vazio
+                    if (response.Count == 0) return;
 
-                    // Transforma em { "type": "eventName", ... } para compatibilidade
-                    if (token != null && token.Type == JTokenType.Object)
+                    // CORREÇÃO: Usamos JsonElement (System.Text.Json) para não conflitar com Newtonsoft
+                    var element = response.GetValue<JsonElement>();
+
+                    string jsonFinal = "";
+                    string rawJson = element.GetRawText(); // Pega o texto cru do JSON
+
+                    if (element.ValueKind == JsonValueKind.Object)
                     {
-                        var jObj = (JObject)token;
-                        if (!jObj.ContainsKey("type")) jObj["type"] = eventName;
-                        jsonFinal = jObj.ToString(Newtonsoft.Json.Formatting.None);
+                        // Truque de String: Injeta o "type" no final do objeto JSON existente
+                        // Ex: { "a": 1 } vira { "a": 1, "type": "nomeEvento" }
+                        // Removemos a última '}' e adicionamos a propriedade
+                        int lastBrace = rawJson.LastIndexOf('}');
+                        if (lastBrace > 0)
+                        {
+                            jsonFinal = rawJson.Substring(0, lastBrace) + $",\"type\":\"{eventName}\"}}";
+                        }
+                        else
+                        {
+                            // Caso de borda (JSON vazio {}), apenas recria
+                            jsonFinal = $"{{\"type\":\"{eventName}\"}}";
+                        }
                     }
                     else
                     {
-                        var jObj = new JObject();
-                        jObj["type"] = eventName;
-                        jObj["data"] = token;
-                        jsonFinal = jObj.ToString(Newtonsoft.Json.Formatting.None);
+                        // Se for Array ou Primitivo, empacota num objeto data
+                        jsonFinal = $"{{\"type\":\"{eventName}\",\"data\":{rawJson}}}";
                     }
 
+                    // Envia a string formatada para o Unity
                     MainThread.Post(() => _bus?.Publish(new IncomingWsMessageEvent(jsonFinal)));
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[WS-IO] Erro ao adaptar msg: {ex.Message}");
+                    Debug.LogWarning($"[WS-IO] Erro adapter '{eventName}': {ex.Message}");
                 }
             });
 
@@ -121,28 +142,25 @@ namespace EGS.SocketIO
         {
             if (_socket == null || !_socket.Connected) return;
 
-            // Parseia a string JSON do ScriptableObject para um objeto real
             try
             {
-                var payload = JObject.Parse(_config.handshakePayload);
-                await _socket.EmitAsync(_config.handshakeEvent, payload);
+                using (JsonDocument doc = JsonDocument.Parse(_config.handshakePayload))
+                {
+                    // Envia o objeto parseado
+                    await _socket.EmitAsync(_config.handshakeEvent, doc.RootElement);
+                }
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[WS-IO] Erro ao enviar handshake (JSON inv�lido no Config?): {ex.Message}");
+                Debug.LogError($"[WS-IO] Erro JSON Handshake: {ex.Message}");
             }
         }
 
-        // --- M�TODO NOVO PARA ENVIAR COMANDOS (BUILD, PLAY, ETC) ---
         public async void Emit(string eventName, object data)
         {
             if (_socket != null && _socket.Connected && IsReady)
             {
                 await _socket.EmitAsync(eventName, data);
-            }
-            else
-            {
-                Debug.LogWarning($"[WS-IO] Tentou enviar '{eventName}' mas n�o est� pronto/conectado.");
             }
         }
 
@@ -150,8 +168,8 @@ namespace EGS.SocketIO
         {
             if (_socket != null)
             {
-                _socket.Disconnect();
-                _socket.Dispose();
+                try { _socket.Disconnect(); } catch { }
+                try { _socket.Dispose(); } catch { }
                 _socket = null;
             }
             IsReady = false;
