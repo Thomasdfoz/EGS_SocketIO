@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace EGS.SocketIO 
 {
-    [CreateAssetMenu(fileName = "NewSocketConfig", menuName = "Simulation/SocketIO Config")]
+    [CreateAssetMenu(fileName = "NewSocketConfig", menuName = "EGS/SocketIO Config")]
     public class SocketIOConfig : ScriptableObject
     {
         [Header("Connection Settings")]
