@@ -6,7 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace Simulation.Core.Services
+namespace EGS.SocketIO
 {
     public sealed class WsClientService : IDisposable
     {
