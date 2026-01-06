@@ -11,17 +11,18 @@ namespace EGS.SocketIO.ExampleSample
         [Header("Configuração Geral")]
         [SerializeField] private SocketIOConfig config; // Arraste o ScriptableObject aqui!
 
-        private WsClientService _client;
+        private SocketIOClientService _client;
         private CancellationTokenSource _lifecycleCts;
         private Coroutine _supervisorCo;
 
         public ConnectionStatus ConnectionStatus { get; private set; }
         private bool _shouldReconnect;
 
-        // --- PUBLIC API ---
+        private void OnDestroy()
+        {
+            StopLoop();
+        }
 
-        // Método novo para você usar nos seus botões/game logic
-        // Ex: SendSocketCommand("build", new { simulation_id = 1 });
         public void SendSocketCommand(string eventName, object data)
         {
             if (_client != null && ConnectionStatus == ConnectionStatus.Ready)
@@ -112,7 +113,7 @@ namespace EGS.SocketIO.ExampleSample
             try
             {
                 _client?.Dispose();
-                _client = new WsClientService(config, EventBusProvider.Bus);
+                _client = new SocketIOClientService(config, EventBusProvider.Bus);
                 await _client.ConnectAsync();
             }
             catch (Exception ex)

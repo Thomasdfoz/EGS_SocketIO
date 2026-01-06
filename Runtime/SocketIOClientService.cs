@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace EGS.SocketIO
 {
-    public sealed class WsClientService : IDisposable
+    public sealed class SocketIOClientService : IDisposable
     {
         private readonly SocketIOConfig _config;
         private readonly IEventBus _bus;
@@ -16,7 +16,7 @@ namespace EGS.SocketIO
 
         public bool IsReady { get; private set; }
 
-        public WsClientService(SocketIOConfig config, IEventBus bus)
+        public SocketIOClientService(SocketIOConfig config, IEventBus bus)
         {
             _config = config;
             _bus = bus;

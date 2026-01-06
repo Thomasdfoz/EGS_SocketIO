@@ -1,6 +1,6 @@
 {
     "name": "com.egs.socketio",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "displayName": "SocketIO",
     "description": "SocketIO client for Unity. This package requires the following external packages to be installed manually:\n- EventBus: https://github.com/Thomasdfoz/EGS_EventBus.git\n- SocketIOUnity: https://github.com/itisnajim/SocketIOUnity.git",
     "unity": "2020.3",
